@@ -419,8 +419,17 @@ export async function runCronIsolatedAgentTurn(params: {
     commandBody = `${base}\n${timeLine}`.trim();
   }
   if (deliveryRequested) {
-    commandBody =
-      `${commandBody}\n\nReturn your summary as plain text; it will be delivered automatically. If the task explicitly calls for messaging a specific external recipient, note who/where it should go instead of sending it yourself.`.trim();
+    if (deliveryPlan.mode === "morning_summary") {
+      const tpl =
+        params.job.delivery?.template ??
+        "Deliver the full results to the user. Format each item as a separate message. " +
+          "Include all details: title, summary, source, link, timestamp. " +
+          "Do not compress into 1-2 sentences. If no results, send a short note saying so.";
+      commandBody = `${commandBody}\n\n${tpl}`.trim();
+    } else {
+      commandBody =
+        `${commandBody}\n\nReturn your summary as plain text; it will be delivered automatically. If the task explicitly calls for messaging a specific external recipient, note who/where it should go instead of sending it yourself.`.trim();
+    }
   }
 
   const existingSkillsSnapshot = cronSession.sessionEntry.skillsSnapshot;
@@ -599,7 +608,11 @@ export async function runCronIsolatedAgentTurn(params: {
   }
 
   if (isAborted()) {
-    return withRunSession({ status: "error", error: abortReason(), ...telemetry });
+    return withRunSession({
+      status: "error",
+      error: abortReason(),
+      ...telemetry,
+    });
   }
   const firstText = payloads[0]?.text ?? "";
   let summary = pickSummaryFromPayloads(payloads) ?? pickSummaryFromOutput(firstText);
@@ -647,7 +660,12 @@ export async function runCronIsolatedAgentTurn(params: {
         });
       }
       logWarn(`[cron:${params.job.id}] ${resolvedDelivery.error.message}`);
-      return withRunSession({ status: "ok", summary, outputText, ...telemetry });
+      return withRunSession({
+        status: "ok",
+        summary,
+        outputText,
+        ...telemetry,
+      });
     }
     const failOrWarnMissingDeliveryField = (message: string) => {
       if (!deliveryBestEffort) {
@@ -660,7 +678,12 @@ export async function runCronIsolatedAgentTurn(params: {
         });
       }
       logWarn(`[cron:${params.job.id}] ${message}`);
-      return withRunSession({ status: "ok", summary, outputText, ...telemetry });
+      return withRunSession({
+        status: "ok",
+        summary,
+        outputText,
+        ...telemetry,
+      });
     };
     if (!resolvedDelivery.channel) {
       return failOrWarnMissingDeliveryField("cron delivery channel is missing");
@@ -679,18 +702,38 @@ export async function runCronIsolatedAgentTurn(params: {
     // be swallowed by ANNOUNCE_SKIP/NO_REPLY in the target agent turn, which
     // silently drops cron output for topic-bound sessions.
     const useDirectDelivery =
-      deliveryPayloadHasStructuredContent || resolvedDelivery.threadId != null;
+      deliveryPayloadHasStructuredContent ||
+      resolvedDelivery.threadId != null ||
+      deliveryPlan.mode === "morning_summary";
     if (useDirectDelivery) {
       try {
-        const payloadsForDelivery =
+        let payloadsForDelivery =
           deliveryPayloads.length > 0
             ? deliveryPayloads
             : synthesizedText
               ? [{ text: synthesizedText }]
               : [];
+        // For morning_summary: split text on --- separators into multiple messages
+        if (
+          deliveryPlan.mode === "morning_summary" &&
+          payloadsForDelivery.length === 1 &&
+          payloadsForDelivery[0].text
+        ) {
+          const chunks = payloadsForDelivery[0].text
+            .split(/\n---\n/)
+            .map((c) => ({ text: c.trim() }))
+            .filter((p) => p.text);
+          if (chunks.length > 1) {
+            payloadsForDelivery = chunks;
+          }
+        }
         if (payloadsForDelivery.length > 0) {
           if (isAborted()) {
-            return withRunSession({ status: "error", error: abortReason(), ...telemetry });
+            return withRunSession({
+              status: "error",
+              error: abortReason(),
+              ...telemetry,
+            });
           }
           const deliveryResults = await deliverOutboundPayloads({
             cfg: cfgWithAgentDefaults,
@@ -770,7 +813,12 @@ export async function runCronIsolatedAgentTurn(params: {
       if (activeSubagentRuns > 0) {
         // Parent orchestration is still in progress; avoid announcing a partial
         // update to the main requester.
-        return withRunSession({ status: "ok", summary, outputText, ...telemetry });
+        return withRunSession({
+          status: "ok",
+          summary,
+          outputText,
+          ...telemetry,
+        });
       }
       if (
         (hadActiveDescendants || expectedSubagentFollowup) &&
@@ -780,14 +828,29 @@ export async function runCronIsolatedAgentTurn(params: {
       ) {
         // Descendants existed but no post-orchestration synthesis arrived, so
         // suppress stale parent text like "on it, pulling everything together".
-        return withRunSession({ status: "ok", summary, outputText, ...telemetry });
+        return withRunSession({
+          status: "ok",
+          summary,
+          outputText,
+          ...telemetry,
+        });
       }
       if (synthesizedText.toUpperCase() === SILENT_REPLY_TOKEN.toUpperCase()) {
-        return withRunSession({ status: "ok", summary, outputText, delivered: true, ...telemetry });
+        return withRunSession({
+          status: "ok",
+          summary,
+          outputText,
+          delivered: true,
+          ...telemetry,
+        });
       }
       try {
         if (isAborted()) {
-          return withRunSession({ status: "error", error: abortReason(), ...telemetry });
+          return withRunSession({
+            status: "error",
+            error: abortReason(),
+            ...telemetry,
+          });
         }
         const didAnnounce = await runSubagentAnnounceFlow({
           childSessionKey: agentSessionKey,
@@ -841,5 +904,11 @@ export async function runCronIsolatedAgentTurn(params: {
     }
   }
 
-  return withRunSession({ status: "ok", summary, outputText, delivered, ...telemetry });
+  return withRunSession({
+    status: "ok",
+    summary,
+    outputText,
+    delivered,
+    ...telemetry,
+  });
 }

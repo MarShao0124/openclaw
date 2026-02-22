@@ -151,7 +151,10 @@ export function applyJobResult(
   job.state.lastDurationMs = Math.max(0, result.endedAt - result.startedAt);
   job.state.lastError = result.error;
   job.state.lastDelivered = result.delivered;
-  const deliveryStatus = resolveDeliveryStatus({ job, delivered: result.delivered });
+  const deliveryStatus = resolveDeliveryStatus({
+    job,
+    delivered: result.delivered,
+  });
   job.state.lastDeliveryStatus = deliveryStatus;
   job.state.lastDeliveryError =
     deliveryStatus === "not-delivered" && result.error ? result.error : undefined;
@@ -380,7 +383,9 @@ export async function onTimer(state: CronServiceState) {
     };
 
     const concurrency = Math.min(resolveRunConcurrency(state), Math.max(1, dueJobs.length));
-    const results: (TimedCronRunOutcome | undefined)[] = Array.from({ length: dueJobs.length });
+    const results: (TimedCronRunOutcome | undefined)[] = Array.from({
+      length: dueJobs.length,
+    });
     let cursor = 0;
     const workers = Array.from({ length: concurrency }, async () => {
       for (;;) {
@@ -522,7 +527,10 @@ export async function runMissedJobs(
     }
     const now = state.deps.nowMs();
     const skipJobIds = opts?.skipJobIds;
-    const missed = collectRunnableJobs(state, now, { skipJobIds, skipAtIfAlreadyRan: true });
+    const missed = collectRunnableJobs(state, now, {
+      skipJobIds,
+      skipAtIfAlreadyRan: true,
+    });
     if (missed.length === 0) {
       return [] as Array<{ jobId: string; job: CronJob }>;
     }
@@ -545,7 +553,11 @@ export async function runMissedJobs(
   const outcomes: Array<TimedCronRunOutcome> = [];
   for (const candidate of startupCandidates) {
     const startedAt = state.deps.nowMs();
-    emit(state, { jobId: candidate.job.id, action: "started", runAtMs: startedAt });
+    emit(state, {
+      jobId: candidate.job.id,
+      action: "started",
+      runAtMs: startedAt,
+    });
     try {
       const result = await executeJobCoreWithTimeout(state, candidate.job);
       outcomes.push({
@@ -664,9 +676,17 @@ export async function executeJobCore(
       if (heartbeatResult.status === "ran") {
         return { status: "ok", summary: text };
       } else if (heartbeatResult.status === "skipped") {
-        return { status: "skipped", error: heartbeatResult.reason, summary: text };
+        return {
+          status: "skipped",
+          error: heartbeatResult.reason,
+          summary: text,
+        };
       } else {
-        return { status: "error", error: heartbeatResult.reason, summary: text };
+        return {
+          status: "error",
+          error: heartbeatResult.reason,
+          summary: text,
+        };
       }
     } else {
       state.deps.requestHeartbeatNow({
@@ -679,7 +699,10 @@ export async function executeJobCore(
   }
 
   if (job.payload.kind !== "agentTurn") {
-    return { status: "skipped", error: "isolated job requires payload.kind=agentTurn" };
+    return {
+      status: "skipped",
+      error: "isolated job requires payload.kind=agentTurn",
+    };
   }
   if (abortSignal?.aborted) {
     return { status: "error", error: timeoutErrorMessage() };
@@ -703,21 +726,40 @@ export async function executeJobCore(
   // See: https://github.com/openclaw/openclaw/issues/15692
   const summaryText = res.summary?.trim();
   const deliveryPlan = resolveCronDeliveryPlan(job);
-  if (summaryText && deliveryPlan.requested && !res.delivered) {
-    const prefix = "Cron";
-    const label =
-      res.status === "error" ? `${prefix} (error): ${summaryText}` : `${prefix}: ${summaryText}`;
-    state.deps.enqueueSystemEvent(label, {
-      agentId: job.agentId,
-      sessionKey: job.sessionKey,
-      contextKey: `cron:${job.id}`,
-    });
-    if (job.wakeMode === "now") {
-      state.deps.requestHeartbeatNow({
-        reason: `cron:${job.id}`,
+  if (deliveryPlan.requested && !res.delivered) {
+    if (deliveryPlan.mode === "morning_summary") {
+      // morning_summary: pass full output text as fallback (not compressed summary)
+      const fullText = (res.outputText || summaryText || "").trim();
+      if (fullText) {
+        state.deps.enqueueSystemEvent(fullText, {
+          agentId: job.agentId,
+          sessionKey: job.sessionKey,
+          contextKey: `cron:${job.id}:fallback`,
+        });
+        if (job.wakeMode === "now") {
+          state.deps.requestHeartbeatNow({
+            reason: `cron:${job.id}`,
+            agentId: job.agentId,
+            sessionKey: job.sessionKey,
+          });
+        }
+      }
+    } else if (summaryText) {
+      const prefix = "Cron";
+      const label =
+        res.status === "error" ? `${prefix} (error): ${summaryText}` : `${prefix}: ${summaryText}`;
+      state.deps.enqueueSystemEvent(label, {
         agentId: job.agentId,
         sessionKey: job.sessionKey,
+        contextKey: `cron:${job.id}`,
       });
+      if (job.wakeMode === "now") {
+        state.deps.requestHeartbeatNow({
+          reason: `cron:${job.id}`,
+          agentId: job.agentId,
+          sessionKey: job.sessionKey,
+        });
+      }
     }
   }
 

@@ -455,10 +455,11 @@ export type CronPayload =
     };
 
 export type CronDelivery = {
-  mode: "none" | "announce" | "webhook";
+  mode: "none" | "announce" | "webhook" | "morning_summary";
   channel?: string;
   to?: string;
   bestEffort?: boolean;
+  template?: string;
 };
 
 export type CronJobState = {

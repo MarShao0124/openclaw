@@ -16,13 +16,15 @@ export type CronWakeMode = "next-heartbeat" | "now";
 
 export type CronMessageChannel = ChannelId | "last";
 
-export type CronDeliveryMode = "none" | "announce" | "webhook";
+export type CronDeliveryMode = "none" | "announce" | "webhook" | "morning_summary";
 
 export type CronDelivery = {
   mode: CronDeliveryMode;
   channel?: CronMessageChannel;
   to?: string;
   bestEffort?: boolean;
+  /** Custom delivery instruction template (used by morning_summary mode). */
+  template?: string;
 };
 
 export type CronDeliveryPatch = Partial<CronDelivery>;

@@ -82,11 +82,17 @@ export function renderCron(props: CronProps) {
           </div>
           <div class="stat">
             <div class="stat-label">Next wake</div>
-            <div class="stat-value">${formatNextRun(props.status?.nextWakeAtMs ?? null)}</div>
+            <div class="stat-value">
+              ${formatNextRun(props.status?.nextWakeAtMs ?? null)}
+            </div>
           </div>
         </div>
         <div class="row" style="margin-top: 12px;">
-          <button class="btn" ?disabled=${props.loading} @click=${props.onRefresh}>
+          <button
+            class="btn"
+            ?disabled=${props.loading}
+            @click=${props.onRefresh}
+          >
             ${props.loading ? "Refreshing…" : "Refresh"}
           </button>
           ${props.error ? html`<span class="muted">${props.error}</span>` : nothing}
@@ -102,7 +108,9 @@ export function renderCron(props: CronProps) {
             <input
               .value=${props.form.name}
               @input=${(e: Event) =>
-                props.onFormChange({ name: (e.target as HTMLInputElement).value })}
+                props.onFormChange({
+                  name: (e.target as HTMLInputElement).value,
+                })}
             />
           </label>
           <label class="field">
@@ -110,7 +118,9 @@ export function renderCron(props: CronProps) {
             <input
               .value=${props.form.description}
               @input=${(e: Event) =>
-                props.onFormChange({ description: (e.target as HTMLInputElement).value })}
+                props.onFormChange({
+                  description: (e.target as HTMLInputElement).value,
+                })}
             />
           </label>
           <label class="field">
@@ -118,7 +128,9 @@ export function renderCron(props: CronProps) {
             <input
               .value=${props.form.agentId}
               @input=${(e: Event) =>
-                props.onFormChange({ agentId: (e.target as HTMLInputElement).value })}
+                props.onFormChange({
+                  agentId: (e.target as HTMLInputElement).value,
+                })}
               placeholder="default"
             />
           </label>
@@ -128,7 +140,9 @@ export function renderCron(props: CronProps) {
               type="checkbox"
               .checked=${props.form.enabled}
               @change=${(e: Event) =>
-                props.onFormChange({ enabled: (e.target as HTMLInputElement).checked })}
+                props.onFormChange({
+                  enabled: (e.target as HTMLInputElement).checked,
+                })}
             />
           </label>
           <label class="field">
@@ -192,7 +206,9 @@ export function renderCron(props: CronProps) {
           </label>
         </div>
         <label class="field" style="margin-top: 12px;">
-          <span>${props.form.payloadKind === "systemEvent" ? "System text" : "Agent message"}</span>
+          <span
+            >${props.form.payloadKind === "systemEvent" ? "System text" : "Agent message"}</span
+          >
           <textarea
             .value=${props.form.payloadText}
             @input=${(e: Event) =>
@@ -220,6 +236,9 @@ export function renderCron(props: CronProps) {
                     `
                   : nothing
               }
+              <option value="morning_summary">
+                Morning summary (full output)
+              </option>
               <option value="webhook">Webhook POST</option>
               <option value="none">None (internal)</option>
             </select>
@@ -227,77 +246,83 @@ export function renderCron(props: CronProps) {
           ${
             props.form.payloadKind === "agentTurn"
               ? html`
-                  <label class="field">
-                    <span>Timeout (seconds)</span>
-                    <input
-                      .value=${props.form.timeoutSeconds}
-                      @input=${(e: Event) =>
-                        props.onFormChange({
-                          timeoutSeconds: (e.target as HTMLInputElement).value,
-                        })}
-                    />
-                  </label>
-                `
+                <label class="field">
+                  <span>Timeout (seconds)</span>
+                  <input
+                    .value=${props.form.timeoutSeconds}
+                    @input=${(e: Event) =>
+                      props.onFormChange({
+                        timeoutSeconds: (e.target as HTMLInputElement).value,
+                      })}
+                  />
+                </label>
+              `
               : nothing
           }
           ${
             selectedDeliveryMode !== "none"
               ? html`
-                  <label class="field">
-                    <span>${selectedDeliveryMode === "webhook" ? "Webhook URL" : "Channel"}</span>
-                    ${
-                      selectedDeliveryMode === "webhook"
-                        ? html`
-                            <input
-                              .value=${props.form.deliveryTo}
-                              @input=${(e: Event) =>
-                                props.onFormChange({
-                                  deliveryTo: (e.target as HTMLInputElement).value,
-                                })}
-                              placeholder="https://example.invalid/cron"
-                            />
-                          `
-                        : html`
-                            <select
-                              .value=${props.form.deliveryChannel || "last"}
-                              @change=${(e: Event) =>
-                                props.onFormChange({
-                                  deliveryChannel: (e.target as HTMLSelectElement).value,
-                                })}
-                            >
-                              ${channelOptions.map(
-                                (channel) =>
-                                  html`<option value=${channel}>
-                                    ${resolveChannelLabel(props, channel)}
-                                  </option>`,
-                              )}
-                            </select>
-                          `
-                    }
-                  </label>
+                <label class="field">
+                  <span
+                    >${selectedDeliveryMode === "webhook" ? "Webhook URL" : "Channel"}</span
+                  >
                   ${
-                    selectedDeliveryMode === "announce"
+                    selectedDeliveryMode === "webhook"
                       ? html`
-                          <label class="field">
-                            <span>To</span>
-                            <input
-                              .value=${props.form.deliveryTo}
-                              @input=${(e: Event) =>
-                                props.onFormChange({
-                                  deliveryTo: (e.target as HTMLInputElement).value,
-                                })}
-                              placeholder="+1555… or chat id"
-                            />
-                          </label>
-                        `
-                      : nothing
+                        <input
+                          .value=${props.form.deliveryTo}
+                          @input=${(e: Event) =>
+                            props.onFormChange({
+                              deliveryTo: (e.target as HTMLInputElement).value,
+                            })}
+                          placeholder="https://example.invalid/cron"
+                        />
+                      `
+                      : html`
+                        <select
+                          .value=${props.form.deliveryChannel || "last"}
+                          @change=${(e: Event) =>
+                            props.onFormChange({
+                              deliveryChannel: (e.target as HTMLSelectElement).value,
+                            })}
+                        >
+                          ${channelOptions.map(
+                            (channel) =>
+                              html`<option value=${channel}>
+                                ${resolveChannelLabel(props, channel)}
+                              </option>`,
+                          )}
+                        </select>
+                      `
                   }
-                `
+                </label>
+                ${
+                  selectedDeliveryMode === "announce" || selectedDeliveryMode === "morning_summary"
+                    ? html`
+                      <label class="field">
+                        <span>To</span>
+                        <input
+                          .value=${props.form.deliveryTo}
+                          @input=${(e: Event) =>
+                            props.onFormChange({
+                              deliveryTo: (e.target as HTMLInputElement).value,
+                            })}
+                          placeholder="+1555… or chat id"
+                        />
+                      </label>
+                    `
+                    : nothing
+                }
+              `
               : nothing
           }
         </div>
         <div class="row" style="margin-top: 14px;">
-          <button class="btn primary" ?disabled=${props.busy} @click=${props.onAdd}>
+          <button
+            class="btn primary"
+            ?disabled=${props.busy}
+            @click=${props.onAdd}
+          >
             ${props.busy ? "Saving…" : "Add job"}
           </button>
         </div>
@@ -396,7 +421,9 @@ function renderScheduleFields(props: CronProps) {
         <input
           .value=${form.cronExpr}
           @input=${(e: Event) =>
-            props.onFormChange({ cronExpr: (e.target as HTMLInputElement).value })}
+            props.onFormChange({
+              cronExpr: (e.target as HTMLInputElement).value,
+            })}
         />
       </label>
       <label class="field">
@@ -404,7 +431,9 @@ function renderScheduleFields(props: CronProps) {
         <input
           .value=${form.cronTz}
           @input=${(e: Event) =>
-            props.onFormChange({ cronTz: (e.target as HTMLInputElement).value })}
+            props.onFormChange({
+              cronTz: (e.target as HTMLInputElement).value,
+            })}
         />
       </label>
     </div>
@@ -420,11 +449,13 @@ function renderJob(job: CronJob, props: CronProps) {
         <div class="list-title">${job.name}</div>
         <div class="list-sub">${formatCronSchedule(job)}</div>
         ${renderJobPayload(job)}
-        ${job.agentId ? html`<div class="muted cron-job-agent">Agent: ${job.agentId}</div>` : nothing}
+        ${
+          job.agentId
+            ? html`<div class="muted cron-job-agent">Agent: ${job.agentId}</div>`
+            : nothing
+        }
       </div>
-      <div class="list-meta">
-        ${renderJobState(job)}
-      </div>
+      <div class="list-meta">${renderJobState(job)}</div>
       <div class="cron-job-footer">
         <div class="chip-row cron-job-chips">
           <span class=${`chip ${job.enabled ? "chip-ok" : "chip-danger"}`}>
@@ -506,9 +537,11 @@ function renderJobPayload(job: CronJob) {
     ${
       delivery
         ? html`<div class="cron-job-detail">
-            <span class="cron-job-detail-label">Delivery</span>
-            <span class="muted cron-job-detail-value">${delivery.mode}${deliveryTarget}</span>
-          </div>`
+          <span class="cron-job-detail-label">Delivery</span>
+          <span class="muted cron-job-detail-value"
+            >${delivery.mode}${deliveryTarget}</span
+          >
+        </div>`
         : nothing
     }
   `;
@@ -572,7 +605,9 @@ function renderRun(entry: CronRunLogEntry, basePath: string) {
         <div class="muted">${entry.durationMs ?? 0}ms</div>
         ${
           chatUrl
-            ? html`<div><a class="session-link" href=${chatUrl}>Open run chat</a></div>`
+            ? html`<div>
+              <a class="session-link" href=${chatUrl}>Open run chat</a>
+            </div>`
             : nothing
         }
         ${entry.error ? html`<div class="muted">${entry.error}</div>` : nothing}

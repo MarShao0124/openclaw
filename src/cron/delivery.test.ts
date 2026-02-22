@@ -54,4 +54,31 @@ describe("resolveCronDeliveryPlan", () => {
     expect(plan.channel).toBeUndefined();
     expect(plan.to).toBe("https://example.invalid/cron");
   });
+
+  it("resolves morning_summary mode with channel routing and requested=true", () => {
+    const plan = resolveCronDeliveryPlan(
+      makeJob({
+        delivery: {
+          mode: "morning_summary",
+          channel: "telegram",
+          to: "telegram:123",
+        },
+      }),
+    );
+    expect(plan.mode).toBe("morning_summary");
+    expect(plan.requested).toBe(true);
+    expect(plan.channel).toBe("telegram");
+    expect(plan.to).toBe("telegram:123");
+  });
+
+  it("resolves morning_summary without explicit channel defaults to last", () => {
+    const plan = resolveCronDeliveryPlan(
+      makeJob({
+        delivery: { mode: "morning_summary", to: "telegram:123" },
+      }),
+    );
+    expect(plan.mode).toBe("morning_summary");
+    expect(plan.requested).toBe(true);
+    expect(plan.channel).toBe("last");
+  });
 });

@@ -29,7 +29,7 @@ export type CronFormState = {
   wakeMode: "next-heartbeat" | "now";
   payloadKind: "systemEvent" | "agentTurn";
   payloadText: string;
-  deliveryMode: "none" | "announce" | "webhook";
+  deliveryMode: "none" | "announce" | "webhook" | "morning_summary";
   deliveryChannel: string;
   deliveryTo: string;
   timeoutSeconds: string;

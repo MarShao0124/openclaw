@@ -1,6 +1,7 @@
 node_modules
 **/node_modules/
 .env
+.env.local
 docker-compose.extra.yml
 dist
 pnpm-lock.yaml
@@ -104,3 +105,6 @@ apps/ios/LocalSigning.xcconfig
 # Generated protocol schema (produced via pnpm protocol:gen)
 dist/protocol.schema.json
 .ant-colony/
+
+# Local fork documentation (not for upstream)
+docs/fork-deployment.md

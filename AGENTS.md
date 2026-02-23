@@ -48,6 +48,13 @@
   `pkill -9 -f openclaw-gateway || true; nohup openclaw gateway run --bind loopback --port 18789 --force > /tmp/openclaw-gateway.log 2>&1 &`
 - Verify: `openclaw channels status --probe`, `ss -ltnp | rg 18789`, `tail -n 120 /tmp/openclaw-gateway.log`.
 
+## Hetzner Server Ops
+
+- This repository is used to update the OpenClaw instance running on a Hetzner server.
+- Server IP is stored in `.env.local` (gitignored) — agents must check `.env.local` for the current IP before any server operations.
+- SSH: `ssh root@$HETZNER_SERVER_IP` (read IP from `.env.local`).
+- Update: `sudo npm i -g openclaw@latest` on the server.
+
 ## Build, Test, and Development Commands
 
 - Runtime baseline: Node **22+** (keep Node + Bun paths working).

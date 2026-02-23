@@ -1,4 +1,9 @@
-import type { BrowserConfig, BrowserProfileConfig, OpenClawConfig } from "../config/config.js";
+import type {
+  BrowserConfig,
+  BrowserProfileConfig,
+  BrowserStealthConfig,
+  OpenClawConfig,
+} from "../config/config.js";
 import { resolveGatewayPort } from "../config/paths.js";
 import {
   deriveDefaultBrowserCdpPortRange,
@@ -34,6 +39,15 @@ export type ResolvedBrowserConfig = {
   profiles: Record<string, BrowserProfileConfig>;
   ssrfPolicy?: SsrFPolicy;
   extraArgs: string[];
+  stealth: ResolvedBrowserStealthConfig;
+};
+
+export type ResolvedBrowserStealthConfig = {
+  enabled: boolean;
+  navigatorPatches: boolean;
+  webglPatches: boolean;
+  humanizedTyping: boolean;
+  humanizedMouse: boolean;
 };
 
 export type ResolvedBrowserProfile = {
@@ -168,6 +182,19 @@ function ensureDefaultChromeExtensionProfile(
   };
   return result;
 }
+function resolveBrowserStealthConfig(
+  cfg: BrowserStealthConfig | undefined,
+): ResolvedBrowserStealthConfig {
+  const enabled = cfg?.enabled !== false;
+  return {
+    enabled,
+    navigatorPatches: enabled && cfg?.navigatorPatches !== false,
+    webglPatches: enabled && cfg?.webglPatches === true,
+    humanizedTyping: enabled && cfg?.humanizedTyping !== false,
+    humanizedMouse: enabled && cfg?.humanizedMouse === true,
+  };
+}
+
 export function resolveBrowserConfig(
   cfg: BrowserConfig | undefined,
   rootConfig?: OpenClawConfig,
@@ -233,6 +260,7 @@ export function resolveBrowserConfig(
     ? cfg.extraArgs.filter((a): a is string => typeof a === "string" && a.trim().length > 0)
     : [];
   const ssrfPolicy = resolveBrowserSsrFPolicy(cfg);
+  const stealth = resolveBrowserStealthConfig(cfg?.stealth);
 
   return {
     enabled,
@@ -252,6 +280,7 @@ export function resolveBrowserConfig(
     profiles,
     ssrfPolicy,
     extraArgs,
+    stealth,
   };
 }
 

@@ -12,7 +12,9 @@ import type { SsrFPolicy } from "../infra/net/ssrf.js";
 import { appendCdpPath, fetchJson, getHeadersWithAuth, withCdpSocket } from "./cdp.helpers.js";
 import { normalizeCdpWsUrl } from "./cdp.js";
 import { getChromeWebSocketUrl } from "./chrome.js";
+import type { ResolvedBrowserStealthConfig } from "./config.js";
 import { assertBrowserNavigationAllowed, withBrowserNavigationPolicy } from "./navigation-guard.js";
+import { applyStealthPatches } from "./stealth-patches.js";
 
 export type BrowserConsoleMessage = {
   type: string;
@@ -101,6 +103,35 @@ const MAX_ROLE_REFS_CACHE = 50;
 const MAX_CONSOLE_MESSAGES = 500;
 const MAX_PAGE_ERRORS = 200;
 const MAX_NETWORK_REQUESTS = 500;
+
+// Module-level stealth config — set once via setStealthConfig() at browser server startup.
+let stealthConfig: ResolvedBrowserStealthConfig | null = null;
+
+/** Configure stealth settings for all future Playwright sessions. Call once at startup. */
+export function setStealthConfig(cfg: ResolvedBrowserStealthConfig): void {
+  stealthConfig = cfg;
+}
+
+const patchedPages = new WeakSet<Page>();
+
+/** Best-effort apply stealth patches to a single page via CDP. */
+async function applyStealthToPage(page: Page): Promise<void> {
+  if (!stealthConfig?.navigatorPatches || patchedPages.has(page)) {
+    return;
+  }
+  patchedPages.add(page);
+  try {
+    const cdpSession = await page.context().newCDPSession(page);
+    await applyStealthPatches(cdpSession, {
+      navigator: stealthConfig.navigatorPatches,
+      permissions: stealthConfig.navigatorPatches,
+      webgl: stealthConfig.webglPatches,
+    });
+    await cdpSession.detach().catch(() => {});
+  } catch {
+    // Best-effort; extension relays or remote browsers may block CDP sessions.
+  }
+}
 
 let cached: ConnectedBrowser | null = null;
 let connecting: Promise<ConnectedBrowser> | null = null;
@@ -295,8 +326,12 @@ function observeContext(context: BrowserContext) {
 
   for (const page of context.pages()) {
     ensurePageState(page);
+    void applyStealthToPage(page);
   }
-  context.on("page", (page) => ensurePageState(page));
+  context.on("page", (page) => {
+    ensurePageState(page);
+    void applyStealthToPage(page);
+  });
 }
 
 export function ensureContextState(context: BrowserContext): ContextState {
@@ -332,13 +367,20 @@ async function connectBrowser(cdpUrl: string): Promise<ConnectedBrowser> {
         const wsUrl = await getChromeWebSocketUrl(normalized, timeout).catch(() => null);
         const endpoint = wsUrl ?? normalized;
         const headers = getHeadersWithAuth(endpoint);
-        const browser = await chromium.connectOverCDP(endpoint, { timeout, headers });
+        const browser = await chromium.connectOverCDP(endpoint, {
+          timeout,
+          headers,
+        });
         const onDisconnected = () => {
           if (cached?.browser === browser) {
             cached = null;
           }
         };
-        const connected: ConnectedBrowser = { browser, cdpUrl: normalized, onDisconnected };
+        const connected: ConnectedBrowser = {
+          browser,
+          cdpUrl: normalized,
+          onDisconnected,
+        };
         cached = connected;
         browser.on("disconnected", onDisconnected);
         observeBrowser(browser);
@@ -414,7 +456,9 @@ async function findPageByTargetId(
         .replace(/^ws:/, "http:")
         .replace(/\/cdp$/, "");
       const listUrl = `${baseUrl}/json/list`;
-      const response = await fetch(listUrl, { headers: getHeadersWithAuth(listUrl) });
+      const response = await fetch(listUrl, {
+        headers: getHeadersWithAuth(listUrl),
+      });
       if (response.ok) {
         const targets = (await response.json()) as Array<{
           id: string;
@@ -605,7 +649,10 @@ async function tryTerminateExecutionViaCdp(opts: {
       try {
         if (needsAttach) {
           const attached = (await runWithTimeout(
-            send("Target.attachToTarget", { targetId: opts.targetId, flatten: true }),
+            send("Target.attachToTarget", {
+              targetId: opts.targetId,
+              flatten: true,
+            }),
             1500,
           )) as { sessionId?: unknown };
           if (typeof attached?.sessionId === "string" && attached.sessionId.trim()) {

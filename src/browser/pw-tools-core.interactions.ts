@@ -1,4 +1,5 @@
 import type { BrowserFormField } from "./client-actions-core.js";
+import { generateTypingDelays } from "./humanize.js";
 import {
   ensurePageState,
   forceDisconnectPlaywrightForTarget,
@@ -8,6 +9,14 @@ import {
 } from "./pw-session.js";
 import { normalizeTimeoutMs, requireRef, toAIFriendlyError } from "./pw-tools-core.shared.js";
 
+// Module-level toggle: set by server startup to enable humanized typing.
+let humanizedTypingEnabled = false;
+
+/** Enable or disable humanized typing delays. Called once at startup. */
+export function setHumanizedTyping(enabled: boolean): void {
+  humanizedTypingEnabled = enabled;
+}
+
 export async function highlightViaPlaywright(opts: {
   cdpUrl: string;
   targetId?: string;
@@ -15,7 +24,11 @@ export async function highlightViaPlaywright(opts: {
 }): Promise<void> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const ref = requireRef(opts.ref);
   try {
     await refLocator(page, ref).highlight();
@@ -38,7 +51,11 @@ export async function clickViaPlaywright(opts: {
     targetId: opts.targetId,
   });
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const ref = requireRef(opts.ref);
   const locator = refLocator(page, ref);
   const timeout = Math.max(500, Math.min(60_000, Math.floor(opts.timeoutMs ?? 8000)));
@@ -70,7 +87,11 @@ export async function hoverViaPlaywright(opts: {
   const ref = requireRef(opts.ref);
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   try {
     await refLocator(page, ref).hover({
       timeout: Math.max(500, Math.min(60_000, opts.timeoutMs ?? 8000)),
@@ -94,7 +115,11 @@ export async function dragViaPlaywright(opts: {
   }
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   try {
     await refLocator(page, startRef).dragTo(refLocator(page, endRef), {
       timeout: Math.max(500, Math.min(60_000, opts.timeoutMs ?? 8000)),
@@ -117,7 +142,11 @@ export async function selectOptionViaPlaywright(opts: {
   }
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   try {
     await refLocator(page, ref).selectOption(opts.values, {
       timeout: Math.max(500, Math.min(60_000, opts.timeoutMs ?? 8000)),
@@ -156,14 +185,26 @@ export async function typeViaPlaywright(opts: {
   const text = String(opts.text ?? "");
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const ref = requireRef(opts.ref);
   const locator = refLocator(page, ref);
   const timeout = Math.max(500, Math.min(60_000, opts.timeoutMs ?? 8000));
   try {
     if (opts.slowly) {
       await locator.click({ timeout });
-      await locator.type(text, { timeout, delay: 75 });
+      if (humanizedTypingEnabled && text.length > 0) {
+        // Variable per-character delays to simulate human typing rhythm
+        const delays = generateTypingDelays(text);
+        for (let i = 0; i < text.length; i++) {
+          await page.keyboard.type(text[i], { delay: delays[i] });
+        }
+      } else {
+        await locator.type(text, { timeout, delay: 75 });
+      }
     } else {
       await locator.fill(text, { timeout });
     }
@@ -183,7 +224,11 @@ export async function fillFormViaPlaywright(opts: {
 }): Promise<void> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const timeout = Math.max(500, Math.min(60_000, opts.timeoutMs ?? 8000));
   for (const field of opts.fields) {
     const ref = field.ref.trim();
@@ -231,7 +276,11 @@ export async function evaluateViaPlaywright(opts: {
   }
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   // Clamp evaluate timeout to prevent permanently blocking Playwright's command queue.
   // Without this, a long-running async evaluate blocks all subsequent page operations
   // because Playwright serializes CDP commands per page.
@@ -375,7 +424,11 @@ export async function scrollIntoViewViaPlaywright(opts: {
 }): Promise<void> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const timeout = normalizeTimeoutMs(opts.timeoutMs, 20_000);
 
   const ref = requireRef(opts.ref);
@@ -451,7 +504,11 @@ export async function takeScreenshotViaPlaywright(opts: {
 }): Promise<{ buffer: Buffer }> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const type = opts.type ?? "png";
   if (opts.ref) {
     if (opts.fullPage) {
@@ -485,7 +542,11 @@ export async function screenshotWithLabelsViaPlaywright(opts: {
 }): Promise<{ buffer: Buffer; labels: number; skipped: number }> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   const type = opts.type ?? "png";
   const maxLabels =
     typeof opts.maxLabels === "number" && Number.isFinite(opts.maxLabels)
@@ -500,7 +561,13 @@ export async function screenshotWithLabelsViaPlaywright(opts: {
   }));
 
   const refs = Object.keys(opts.refs ?? {});
-  const boxes: Array<{ ref: string; x: number; y: number; w: number; h: number }> = [];
+  const boxes: Array<{
+    ref: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }> = [];
   let skipped = 0;
 
   for (const ref of refs) {
@@ -612,7 +679,11 @@ export async function setInputFilesViaPlaywright(opts: {
 }): Promise<void> {
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
-  restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });
+  restoreRoleRefsForTarget({
+    cdpUrl: opts.cdpUrl,
+    targetId: opts.targetId,
+    page,
+  });
   if (!opts.paths.length) {
     throw new Error("paths are required");
   }

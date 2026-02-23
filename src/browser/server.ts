@@ -5,6 +5,8 @@ import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveBrowserConfig } from "./config.js";
 import { ensureBrowserControlAuth, resolveBrowserControlAuth } from "./control-auth.js";
 import { isPwAiLoaded } from "./pw-ai-state.js";
+import { setStealthConfig } from "./pw-session.js";
+import { setHumanizedTyping } from "./pw-tools-core.interactions.js";
 import { registerBrowserRoutes } from "./routes/index.js";
 import type { BrowserRouteRegistrar } from "./routes/types.js";
 import { type BrowserServerState, createBrowserRouteContext } from "./server-context.js";
@@ -28,6 +30,10 @@ export async function startBrowserControlServerFromConfig(): Promise<BrowserServ
   if (!resolved.enabled) {
     return null;
   }
+
+  // Propagate stealth config to the Playwright session and interaction layers.
+  setStealthConfig(resolved.stealth);
+  setHumanizedTyping(resolved.stealth.humanizedTyping);
 
   let browserAuth = resolveBrowserControlAuth(cfg);
   try {

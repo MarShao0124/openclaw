@@ -26,6 +26,18 @@ export type BrowserSsrFPolicyConfig = {
    */
   hostnameAllowlist?: string[];
 };
+export type BrowserStealthConfig = {
+  /** Enable stealth mode. Default: true */
+  enabled?: boolean;
+  /** Patch navigator properties via CDP. Default: true */
+  navigatorPatches?: boolean;
+  /** Patch WebGL vendor/renderer. Default: false (can break WebGL sites) */
+  webglPatches?: boolean;
+  /** Use variable typing delays. Default: true */
+  humanizedTyping?: boolean;
+  /** Use mouse trajectory simulation. Default: false (slower) */
+  humanizedMouse?: boolean;
+};
 export type BrowserConfig = {
   enabled?: boolean;
   /** If false, disable browser act:evaluate (arbitrary JS). Default: true */
@@ -60,4 +72,6 @@ export type BrowserConfig = {
    * Example: ["--window-size=1920,1080", "--disable-infobars"]
    */
   extraArgs?: string[];
+  /** Stealth/anti-detection configuration. */
+  stealth?: BrowserStealthConfig;
 };

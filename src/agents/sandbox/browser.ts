@@ -86,6 +86,13 @@ function buildSandboxBrowserResolvedConfig(params: {
     attachOnly: true,
     defaultProfile: DEFAULT_OPENCLAW_BROWSER_PROFILE_NAME,
     extraArgs: [],
+    stealth: {
+      enabled: true,
+      navigatorPatches: true,
+      webglPatches: false,
+      humanizedTyping: true,
+      humanizedMouse: false,
+    },
     profiles: {
       [DEFAULT_OPENCLAW_BROWSER_PROFILE_NAME]: {
         cdpPort: params.cdpPort,
@@ -117,7 +124,9 @@ async function ensureDockerNetwork(network: string) {
   ) {
     return;
   }
-  const inspect = await execDocker(["network", "inspect", network], { allowFailure: true });
+  const inspect = await execDocker(["network", "inspect", network], {
+    allowFailure: true,
+  });
   if (inspect.code === 0) {
     return;
   }

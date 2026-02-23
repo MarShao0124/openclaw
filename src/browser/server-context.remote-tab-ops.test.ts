@@ -14,9 +14,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function makeState(
-  profile: "remote" | "openclaw",
-): BrowserServerState & { profiles: Map<string, { lastTargetId?: string | null }> } {
+function makeState(profile: "remote" | "openclaw"): BrowserServerState & {
+  profiles: Map<string, { lastTargetId?: string | null }>;
+} {
   return {
     // oxlint-disable-next-line typescript/no-explicit-any
     server: null as any,
@@ -45,6 +45,13 @@ function makeState(
         },
         openclaw: { cdpPort: 18800, color: "#FF4500" },
       },
+      stealth: {
+        enabled: true,
+        navigatorPatches: true,
+        webglPatches: false,
+        humanizedTyping: true,
+        humanizedMouse: false,
+      },
     },
     profiles: new Map(),
   };
@@ -61,7 +68,11 @@ function createRemoteRouteHarness(fetchMock?: ReturnType<typeof vi.fn>) {
   global.fetch = withFetchPreconnect(activeFetchMock);
   const state = makeState("remote");
   const ctx = createBrowserRouteContext({ getState: () => state });
-  return { state, remote: ctx.forProfile("remote"), fetchMock: activeFetchMock };
+  return {
+    state,
+    remote: ctx.forProfile("remote"),
+    fetchMock: activeFetchMock,
+  };
 }
 
 function createSequentialPageLister<T>(responses: T[]) {
@@ -77,7 +88,12 @@ function createSequentialPageLister<T>(responses: T[]) {
 describe("browser server-context remote profile tab operations", () => {
   it("uses Playwright tab operations when available", async () => {
     const listPagesViaPlaywright = vi.fn(async () => [
-      { targetId: "T1", title: "Tab 1", url: "https://example.com", type: "page" },
+      {
+        targetId: "T1",
+        title: "Tab 1",
+        url: "https://example.com",
+        type: "page",
+      },
     ]);
     const createPageViaPlaywright = vi.fn(async () => ({
       targetId: "T2",
@@ -120,19 +136,39 @@ describe("browser server-context remote profile tab operations", () => {
       // ensureTabAvailable() calls listTabs twice
       [
         { targetId: "A", title: "A", url: "https://example.com", type: "page" },
-        { targetId: "B", title: "B", url: "https://www.example.com", type: "page" },
+        {
+          targetId: "B",
+          title: "B",
+          url: "https://www.example.com",
+          type: "page",
+        },
       ],
       [
         { targetId: "A", title: "A", url: "https://example.com", type: "page" },
-        { targetId: "B", title: "B", url: "https://www.example.com", type: "page" },
+        {
+          targetId: "B",
+          title: "B",
+          url: "https://www.example.com",
+          type: "page",
+        },
       ],
       // second ensureTabAvailable() calls listTabs twice, order flips
       [
-        { targetId: "B", title: "B", url: "https://www.example.com", type: "page" },
+        {
+          targetId: "B",
+          title: "B",
+          url: "https://www.example.com",
+          type: "page",
+        },
         { targetId: "A", title: "A", url: "https://example.com", type: "page" },
       ],
       [
-        { targetId: "B", title: "B", url: "https://www.example.com", type: "page" },
+        {
+          targetId: "B",
+          title: "B",
+          url: "https://www.example.com",
+          type: "page",
+        },
         { targetId: "A", title: "A", url: "https://example.com", type: "page" },
       ],
     ];
@@ -165,8 +201,22 @@ describe("browser server-context remote profile tab operations", () => {
 
   it("falls back to the only tab for remote profiles when targetId is stale", async () => {
     const responses = [
-      [{ targetId: "T1", title: "Tab 1", url: "https://example.com", type: "page" }],
-      [{ targetId: "T1", title: "Tab 1", url: "https://example.com", type: "page" }],
+      [
+        {
+          targetId: "T1",
+          title: "Tab 1",
+          url: "https://example.com",
+          type: "page",
+        },
+      ],
+      [
+        {
+          targetId: "T1",
+          title: "Tab 1",
+          url: "https://example.com",
+          type: "page",
+        },
+      ],
     ];
     const listPagesViaPlaywright = createSequentialPageLister(responses);
 
@@ -202,7 +252,12 @@ describe("browser server-context remote profile tab operations", () => {
 
   it("uses Playwright focus for remote profiles when available", async () => {
     const listPagesViaPlaywright = vi.fn(async () => [
-      { targetId: "T1", title: "Tab 1", url: "https://example.com", type: "page" },
+      {
+        targetId: "T1",
+        title: "Tab 1",
+        url: "https://example.com",
+        type: "page",
+      },
     ]);
     const focusPageByTargetIdViaPlaywright = vi.fn(async () => {});
 
